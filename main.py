@@ -126,6 +126,86 @@ def _hf_quality(data):
     return "FAIR", YELLOW
 
 
+def _weather_desc_color(desc: str) -> int:
+    """Map a weather description string to a color.
+
+    We don't track real trends yet, so we approximate using severity:
+      - Extreme / severe (thunderstorm, storm, freezing, blizzard, etc.) -> RED
+      - Clearly bad (rain, showers, snow, heavy clouds, fog)            -> YELLOW
+      - Mixed / partly cloudy / scattered clouds                        -> ORANGE (use YELLOW+RED mix)
+      - Clear / sunny / few clouds                                     -> GREEN
+      - Fallback                                                        -> WHITE
+    """
+    if not desc:
+        return WHITE
+    d = desc.strip().lower()
+
+    # Extreme / severe
+    extreme_keywords = [
+        "thunderstorm",
+        "tornado",
+        "hurricane",
+        "blizzard",
+        "freezing",
+        "ice",
+        "sleet",
+        "storm",
+        "squall",
+    ]
+    if any(k in d for k in extreme_keywords):
+        return RED
+
+    # Clearly bad / worsening (use YELLOW)
+    worse_keywords = [
+        "heavy rain",
+        "rain",
+        "showers",
+        "drizzle",
+        "snow",
+        "overcast",
+        "fog",
+        "mist",
+        "haze",
+        "smoke",
+    ]
+    if any(k in d for k in worse_keywords):
+        return YELLOW
+
+    # Mixed / partly cloudy / scattered clouds: treat as "worse" too
+    # so they share the same YELLOW as general bad conditions.
+    if "scattered" in d or "partly" in d or "few clouds" in d or "broken clouds" in d:
+        return YELLOW
+
+    # Clear / good
+    if "clear" in d or "sun" in d or "fair" in d:
+        return GREEN
+
+    return WHITE
+
+
+def _hf_band_color(label):
+    """Map a band condition string (Poor/Fair/Good) to a color.
+
+    HamQSL typically uses "Poor", "Fair", "Good" for band conditions.
+    We map these as requested:
+      - Poor  -> RED
+      - Fair  -> BLUE
+      - Good  -> GREEN
+    Anything else falls back to WHITE.
+    """
+    if not label:
+        return WHITE
+    l = label.strip().lower()
+    if l.startswith("poor"):
+        return RED
+    if l.startswith("fair"):
+        # User request: use blue for "fair"
+        return CYAN  # CYAN is closest to blue in our palette
+    if l.startswith("good"):
+        return GREEN
+    return WHITE
+
+
 def _draw_pixel(disp, x, y, color):
     # Bounds check in logical (landscape) coordinates
     if x < 0 or y < 0 or x >= LOGICAL_WIDTH or y >= LOGICAL_HEIGHT:
@@ -268,8 +348,9 @@ def draw_weather_slide(disp):
         text = "N/A"
     draw_centered_text(disp, text, 100, color=WHITE, scale=5)
 
-    # Bottom: description
-    draw_centered_text(disp, desc, 180, color=GREEN, scale=2)
+    # Bottom: description with color based on severity/condition
+    color = _weather_desc_color(desc)
+    draw_centered_text(disp, desc, 180, color=color, scale=2)
 
 
 def draw_hf_slide(disp):
@@ -293,9 +374,23 @@ def draw_hf_slide(disp):
     # K and A indices
     draw_centered_text(disp, "K %s   A %s" % (k, a), 135, color=WHITE, scale=3)
 
-    # Bottom: overall HF quality
-    label, color = _hf_quality(data)
-    draw_centered_text(disp, label, 190, color=color, scale=4)
+    # Overall HF quality (used as fallback color when band-specific data is missing)
+    overall_label, overall_color = _hf_quality(data)
+
+    # Bottom: band-specific HF conditions for 10m, 20m, 40m
+    band_10 = data.get("10m", "")
+    band_20 = data.get("20m", "")
+    band_40 = data.get("40m", "")
+
+    color_10 = _hf_band_color(band_10) if band_10 else overall_color
+    color_20 = _hf_band_color(band_20) if band_20 else overall_color
+    color_40 = _hf_band_color(band_40) if band_40 else overall_color
+
+    # Draw band labels spaced across the bottom. Using scale=3 for good readability.
+    y = 190
+    draw_text(disp, "10M", 40, y, color=color_10, scale=3)
+    draw_text(disp, "20M", 140, y, color=color_20, scale=3)
+    draw_text(disp, "40M", 240, y, color=color_40, scale=3)
 
 
 def draw_utc_slide(disp):

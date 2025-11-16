@@ -103,6 +103,10 @@ def fetch_hf():
             "solarflux": _extract("solarflux"),
             "kindex": _extract("kindex"),
             "aindex": _extract("aindex"),
+            # Band-specific conditions from HamQSL (typically "Poor", "Fair", "Good")
+            "10m": _extract("band_10m"),
+            "20m": _extract("band_20m"),
+            "40m": _extract("band_40m"),
         }
         print("[hf] parsed:", result)
         return result

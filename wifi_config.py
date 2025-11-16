@@ -14,8 +14,9 @@ WIFI_PASSWORD = "YourWiFiPassword"
 OWM_API_KEY = "YOUR_OPENWEATHERMAP_API_KEY"
 
 # Your location (ZIP + country code) for weather
-OWM_ZIP = "15025"      # Jefferson Hills example
+OWM_ZIP = "00000"      # Jefferson Hills example
 OWM_COUNTRY = "US"      # two-letter country code
 
 # Location name shown at the top of the weather slide
-LOCATION_NAME = "Jefferson Hills, PA"
+LOCATION_NAME = "city, state"
+
